@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
 import '../services/ai_service.dart';
 
 class MemoryGrid extends StatefulWidget {
@@ -19,10 +20,14 @@ class _MemoryGridState extends State<MemoryGrid> {
   final AiService _aiService = AiService();
   Future<Map<String, List<Map<String, dynamic>>>>? _memoryFuture;
 
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+
   @override
   void initState() {
     super.initState();
-    _memoryFuture = _fetchAndGroupMemories();
+    _selectedDay = _focusedDay;
+    _memoryFuture = _fetchMemoriesForDay(_selectedDay!);
   }
 
   @override
@@ -30,36 +35,26 @@ class _MemoryGridState extends State<MemoryGrid> {
     super.didUpdateWidget(oldWidget);
     if (widget.refreshTrigger != oldWidget.refreshTrigger) {
       setState(() {
-        _memoryFuture = _fetchAndGroupMemories();
+        _memoryFuture = _fetchMemoriesForDay(_selectedDay!);
       });
     }
   }
 
-  Future<Map<String, List<Map<String, dynamic>>>> _fetchAndGroupMemories() async {
-    final docs = await _aiService.fetchDocuments(limit: 100);
+  Future<Map<String, List<Map<String, dynamic>>>> _fetchMemoriesForDay(DateTime day) async {
+    final startOfDay = DateTime(day.year, day.month, day.day);
+    final endOfDay = DateTime(day.year, day.month, day.day, 23, 59, 59);
+
+    // Fetch specifically for the selected day
+    final docs = await _aiService.fetchDocuments(start: startOfDay, end: endOfDay, limit: 100);
+
+    // Even though we fetch for one day, grouping logic remains handy for UI structure
     final Map<String, List<Map<String, dynamic>>> grouped = {};
 
-    for (var doc in docs) {
-      final dateStr = doc['created_at'] as String?;
-      if (dateStr == null) continue;
-
-      final date = DateTime.parse(dateStr).toLocal();
-      final now = DateTime.now();
-      String key;
-
-      if (date.year == now.year && date.month == now.month && date.day == now.day) {
-        key = "Today";
-      } else if (date.year == now.year && date.month == now.month && date.day == now.day - 1) {
-        key = "Yesterday";
-      } else {
-        key = DateFormat('MM.dd').format(date);
-      }
-
-      if (!grouped.containsKey(key)) {
-        grouped[key] = [];
-      }
-      grouped[key]!.add(doc);
+    String key = DateFormat('MM.dd').format(day);
+    if (docs.isNotEmpty) {
+       grouped[key] = docs;
     }
+
     return grouped;
   }
 
@@ -67,21 +62,50 @@ class _MemoryGridState extends State<MemoryGrid> {
   Widget build(BuildContext context) {
     return Drawer(
       backgroundColor: const Color(0xFFF9F9F9),
-      width: 320,
+      width: MediaQuery.of(context).size.width, // Full Screen Width
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 60, 24, 20),
-            child: Text(
-              "Memory Archive",
-              style: GoogleFonts.nanumMyeongjo(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+            padding: const EdgeInsets.fromLTRB(24, 60, 24, 10),
+            child: Row(
+              children: [
+                Text(
+                  "Memory Archive",
+                  style: GoogleFonts.nanumMyeongjo(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                )
+              ]
             ),
           ),
+          // Calendar Widget
+          TableCalendar(
+            firstDay: DateTime(2020),
+            lastDay: DateTime(2030),
+            focusedDay: _focusedDay,
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+            onDaySelected: (selectedDay, focusedDay) {
+              setState(() {
+                _selectedDay = selectedDay;
+                _focusedDay = focusedDay;
+                _memoryFuture = _fetchMemoriesForDay(selectedDay);
+              });
+            },
+            calendarStyle: CalendarStyle(
+              selectedDecoration: const BoxDecoration(color: Color(0xFF1B3A57), shape: BoxShape.circle),
+              todayDecoration: BoxDecoration(color: const Color(0xFF1B3A57).withOpacity(0.5), shape: BoxShape.circle),
+            ),
+            headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
+          ),
+          const Divider(),
           Expanded(
             child: FutureBuilder<Map<String, List<Map<String, dynamic>>>>(
               future: _memoryFuture,
