@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart'; // Add permission handling logic
 import 'package:uuid/uuid.dart'; // Added for ID generation
@@ -188,7 +189,9 @@ class _HomeScreenState extends State<HomeScreen> {
     Future.microtask(() async {
       try {
         // Save to DB (Async - Fire & Forget)
-        _aiService.saveDocument(text);
+        // Removed single-message saving as per user request ("Not saving messages one by one")
+        // The session will be saved via flushSession or checkpoints.
+        // _aiService.saveDocument(text);
 
         // Update Metrics (Async - Fire & Forget)
         _aiService.analyzeNeuroMetrics(text).then((metrics) {

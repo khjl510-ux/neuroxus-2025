@@ -1035,21 +1035,30 @@ $d
   }
 
   Future<List<Map<String, dynamic>>> fetchDocuments({DateTime? start, DateTime? end, int? limit, String? typeFilter, String dateColumn = 'created_at'}) async {
-    var query = Supabase.instance.client.from('memories').select('*'); // Target 'memories'
+    // Target 'documents' table to fetch Summarized Sessions instead of raw chunks
+    var query = Supabase.instance.client.from('documents').select('*');
     if (start != null) query = query.gte(dateColumn, start.toUtc().toIso8601String());
     if (end != null) query = query.lte(dateColumn, end.toUtc().toIso8601String());
-    if (typeFilter != null) query = query.contains('metadata', {'type': typeFilter}); // Filter by metadata
+    // Filter by source_type if provided, or default to Session/Log if appropriate
+    if (typeFilter != null) query = query.eq('source_type', typeFilter);
+
     final data = await query.order(dateColumn, ascending: false).limit(limit ?? 1000);
 
-    return List<Map<String, dynamic>>.from(data).map((doc) => {
-      'id': doc['id'].toString(),
-      'content': doc['content'],
-      'created_at': doc['created_at'],
-      'metadata': doc['metadata'],
-      'is_completed': doc['metadata'] != null ? doc['metadata']['is_completed'] : false,
-      'deadline': doc['metadata'] != null ? doc['metadata']['deadline'] : null,
-      'emotion': doc['metadata'] != null ? doc['metadata']['emotion'] : null,
-      'type': doc['metadata'] != null ? doc['metadata']['type'] : 'LOG'
+    return List<Map<String, dynamic>>.from(data).map((doc) {
+      final meta = doc['metadata'] as Map<String, dynamic>? ?? {};
+      return {
+        'id': doc['id'].toString(),
+        'content': doc['raw_content'] ?? doc['title'], // Fallback
+        'raw_content': doc['raw_content'],
+        'created_at': doc['created_at'],
+        'metadata': meta,
+        'title': doc['title'],
+        // Map fields that might be missing in 'documents' but needed by UI
+        'is_completed': meta['is_completed'] ?? false,
+        'deadline': meta['deadline'],
+        'emotion': meta['emotion'],
+        'type': doc['source_type'] // Use source_type as type
+      };
     }).toList();
   }
 
