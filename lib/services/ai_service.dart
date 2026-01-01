@@ -1063,8 +1063,37 @@ $d
     if (user == null) throw Exception("로그인 필요");
 
     // 1. Create a Parent Document representing the session
-    final fullSessionContent = nodes.map((n) => n.content).join("\n---\n");
-    final sessionTitle = "Session: ${DateFormat('yyyy-MM-dd HH:mm').format(nodes.first.timestamp)}";
+    // Reconstruct conversation for context
+    final fullSessionContent = nodes.map((n) => "${n.role.toString().split('.').last.toUpperCase()}: ${n.content}").join("\n\n");
+
+    // Generate Title and Summary
+    String sessionTitle = "Session: ${DateFormat('yyyy-MM-dd HH:mm').format(nodes.first.timestamp)}";
+    String sessionSummary = "No summary available.";
+
+    try {
+      final summaryPrompt = """
+Analyze the following conversation session.
+1. Generate a concise, poetic title (under 10 words).
+2. Summarize the core insights and key points (bullet points).
+
+Return strictly JSON:
+{
+  "title": "...",
+  "summary": "..."
+}
+
+Conversation:
+$fullSessionContent
+""";
+      final response = await _tryGenerate(true, [Content.text(summaryPrompt)]); // Use Pro
+      final jsonStr = response.text?.replaceAll('```json', '').replaceAll('```', '').trim() ?? "{}";
+      final Map<String, dynamic> parsed = jsonDecode(jsonStr);
+      sessionTitle = parsed['title'] ?? sessionTitle;
+      sessionSummary = parsed['summary'] ?? sessionSummary;
+    } catch (e) {
+      print("Summary generation failed: $e");
+    }
+
     final parentId = Uuid().v4();
     final now = DateTime.now().toUtc().toIso8601String();
 
@@ -1073,6 +1102,7 @@ $d
       'title': sessionTitle,
       'source_type': 'Session',
       'raw_content': fullSessionContent,
+      'metadata': {'summary': sessionSummary}, // Store summary in metadata
       'created_at': now
     }).select('id').single();
 

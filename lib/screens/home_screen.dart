@@ -374,16 +374,58 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Header: Date and Title
                   Text(
-                    doc['created_at'] != null ? doc['created_at'].toString().split('T').first : 'Memory',
+                    doc['created_at'] != null ? DateFormat('yyyy. MM. dd HH:mm').format(DateTime.parse(doc['created_at']).toLocal()) : 'Memory',
                     style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
+                  Text(
+                    doc['title'] ?? 'Untitled Session',
+                    style: GoogleFonts.nanumMyeongjo(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF1A1A1A)),
+                  ),
+                  const Divider(height: 30, color: Color(0xFFE0DCD5)),
+
+                  // Content Area
                   Expanded(
                     child: SingleChildScrollView(
-                      child: Text(
-                        doc['content'] ?? '',
-                        style: GoogleFonts.nanumMyeongjo(fontSize: 16, height: 1.6),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Section 1: Core Summary (if available)
+                          if (doc['metadata'] != null && doc['metadata']['summary'] != null) ...[
+                            Text(
+                              "💡 Core Insights",
+                              style: GoogleFonts.nanumMyeongjo(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF1B3A57)),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF9F7F1), // Paper color
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFE0DCD5)),
+                              ),
+                              child: Text(
+                                doc['metadata']['summary'],
+                                style: GoogleFonts.nanumMyeongjo(fontSize: 15, height: 1.6, color: const Color(0xFF1A1A1A)),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // Section 2: Original Conversation
+                          Text(
+                            "📜 Original Conversation",
+                            style: GoogleFonts.nanumMyeongjo(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            doc['raw_content'] ?? doc['content'] ?? '', // Fallback to content if raw_content missing
+                            style: GoogleFonts.nanumMyeongjo(fontSize: 15, height: 1.6, color: const Color(0xFF4A4A4A)),
+                          ),
+                        ],
                       ),
                     ),
                   )

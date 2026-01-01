@@ -167,7 +167,13 @@ class _MemoryGridState extends State<MemoryGrid> {
   }
 
   String _extractTitle(Map<String, dynamic> doc) {
-    final content = doc['content'] as String;
+    // Prefer the 'title' field if available (added in v1.1)
+    if (doc['title'] != null && doc['title'].toString().isNotEmpty && doc['title'] != 'Untitled') {
+      return doc['title'];
+    }
+    // Fallback to content extraction
+    final content = doc['content'] as String? ?? "";
+    if (content.isEmpty) return "Untitled Memory";
     return content.split('\n').first;
   }
 
