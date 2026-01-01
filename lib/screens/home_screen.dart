@@ -41,6 +41,9 @@ class _HomeScreenState extends State<HomeScreen> {
   // Service
   final AiService _aiService = AiService();
 
+  // Session State
+  late String _currentSessionId; // Unique ID for current session
+
   // DCT Memory & Chat State
   final List<Map<String, String>> _conversationHistory = [];
   // Local list for UI rendering (Chat Bubbles)
@@ -60,6 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _currentSessionId = const Uuid().v4(); // Generate Session ID on start
     _checkPermissions();
     // Phase 2: The Awakening Trigger
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -185,14 +189,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _trackConversation('user', text);
 
+    // Real-time Logging (Async - Fire & Forget)
+    _aiService.logChatRealtime(_currentSessionId, 'user', text);
+
     // 2. Stream Processing (StreamBuilder pattern manually implemented)
     Future.microtask(() async {
       try {
-        // Save to DB (Async - Fire & Forget)
-        // Removed single-message saving as per user request ("Not saving messages one by one")
-        // The session will be saved via flushSession or checkpoints.
-        // _aiService.saveDocument(text);
-
         // Update Metrics (Async - Fire & Forget)
         _aiService.analyzeNeuroMetrics(text).then((metrics) {
            if (mounted) setState(() => _currentMetrics = metrics);
@@ -233,6 +235,8 @@ class _HomeScreenState extends State<HomeScreen> {
         // Finalize
         if (mounted) {
            _trackConversation('ai', fullResponse);
+           // Real-time Logging for AI (Async)
+           _aiService.logChatRealtime(_currentSessionId, 'ai', fullResponse);
         }
 
       } catch (e) {
@@ -491,6 +495,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   CognitiveScore(
                     stabilityVsAggressive: 0, logicVsEmotion: 0, overviewVsDetail: 0, consistencyVsOpenness: 0, utilityVsCuriosity: 0, temporalVsPerpetual: 0
                   ),
+                  _currentSessionId, // Pass Session ID for Upsert
                   clearHistory: false // Keep context!
                 );
 

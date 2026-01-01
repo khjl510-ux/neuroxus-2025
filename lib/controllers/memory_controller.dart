@@ -108,7 +108,8 @@ class MemoryController {
     // 2. Async Processing (Fire and Forget style, but awaited here for safety)
     try {
       // Step 2.1: Flush to L3 DB
-      await _aiService.flushSession(sessionNodes, sessionProfile);
+      final tempSessionId = const Uuid().v4(); // Generate a temporary ID for this legacy controller flow
+      await _aiService.flushSession(sessionNodes, sessionProfile, tempSessionId);
 
       // Step 2.2: Extract Identity & Update Persona (Async)
       _processIdentityUpdate(sessionNodes, sessionProfile);

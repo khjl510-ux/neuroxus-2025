@@ -54,6 +54,24 @@ class AiService {
     _embeddingModel = GenerativeModel(model: 'text-embedding-004', apiKey: _apiKey);
   }
 
+  // --- 📡 Real-time Chat Logging (Fire & Forget) ---
+  Future<void> logChatRealtime(String sessionId, String role, String content) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      await Supabase.instance.client.from('chat_logs').insert({
+        'user_id': user.id,
+        'session_id': sessionId,
+        'role': role,
+        'content': content,
+        'created_at': DateTime.now().toUtc().toIso8601String()
+      });
+    } catch (e) {
+      print("Real-time Log Error: $e");
+    }
+  }
+
   // 🔥 모델 호출기 (Task 2: Monitoring Added + Dual-Model Hybrid Strategy + Stream)
   // Standard Mode: Default to Flash for speed.
   // Logic Analytics Mode: Use Pro only for deep tasks (flushSession).
@@ -1063,7 +1081,8 @@ $d
   }
 
   // --- 💾 Bulk Flush Session (L1/L2 -> L3) ---
-  Future<void> flushSession(List<ConversationNode> nodes, CognitiveScore sessionProfile, {bool clearHistory = true}) async {
+  // Updated: Supports Upsert via Session ID
+  Future<void> flushSession(List<ConversationNode> nodes, CognitiveScore sessionProfile, String sessionId, {bool clearHistory = true}) async {
     if (nodes.isEmpty) return;
 
     final stopwatch = Stopwatch()..start(); // Task 2: Monitor
@@ -1106,18 +1125,25 @@ $fullSessionContent
     final parentId = Uuid().v4();
     final now = DateTime.now().toUtc().toIso8601String();
 
-    final docResponse = await Supabase.instance.client.from('documents').insert({
+    // UPSERT: Insert or Update Document based on (user_id, session_id)
+    final docResponse = await Supabase.instance.client.from('documents').upsert({
       'user_id': user.id,
+      'session_id': sessionId, // Key for uniqueness
       'title': sessionTitle,
       'source_type': 'Session',
       'raw_content': fullSessionContent,
       'metadata': {'summary': sessionSummary}, // Store summary in metadata
-      'created_at': now
-    }).select('id').single();
+      'created_at': now // Updates timestamp on upsert
+    }, onConflict: 'user_id, session_id').select('id').single();
 
     final String documentId = docResponse['id'];
 
-    // 2. Insert all nodes as Memories
+    // 2. Clean up old chunks for this session (to avoid duplication on re-save)
+    // Upserting chunks is hard because we don't track chunk IDs across saves easily.
+    // Simpler strategy: Delete all memories for this document and re-insert.
+    await Supabase.instance.client.from('memories').delete().eq('document_id', documentId);
+
+    // 3. Insert all nodes as Memories (Re-chunking)
     for (var node in nodes) {
       final vector = await getEmbedding(node.content);
 
