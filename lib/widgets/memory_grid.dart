@@ -7,8 +7,9 @@ import '../services/ai_service.dart';
 
 class MemoryGrid extends StatefulWidget {
   final Function(Map<String, dynamic>) onMemoryTap;
+  final String? refreshTrigger; // Token to force refresh (e.g., timestamp)
 
-  const MemoryGrid({super.key, required this.onMemoryTap});
+  const MemoryGrid({super.key, required this.onMemoryTap, this.refreshTrigger});
 
   @override
   State<MemoryGrid> createState() => _MemoryGridState();
@@ -22,6 +23,16 @@ class _MemoryGridState extends State<MemoryGrid> {
   void initState() {
     super.initState();
     _memoryFuture = _fetchAndGroupMemories();
+  }
+
+  @override
+  void didUpdateWidget(MemoryGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.refreshTrigger != oldWidget.refreshTrigger) {
+      setState(() {
+        _memoryFuture = _fetchAndGroupMemories();
+      });
+    }
   }
 
   Future<Map<String, List<Map<String, dynamic>>>> _fetchAndGroupMemories() async {

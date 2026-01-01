@@ -43,6 +43,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Session State
   late String _currentSessionId; // Unique ID for current session
+  bool _isSyncing = false; // Real-time sync indicator
+  String _lastArchivedAt = ""; // Trigger for MemoryGrid refresh
 
   // DCT Memory & Chat State
   final List<Map<String, String>> _conversationHistory = [];
@@ -189,8 +191,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _trackConversation('user', text);
 
-    // Real-time Logging (Async - Fire & Forget)
-    _aiService.logChatRealtime(_currentSessionId, 'user', text);
+    // Real-time Logging (Async - Fire & Forget with UI state)
+    setState(() => _isSyncing = true);
+    _aiService.logChatRealtime(_currentSessionId, 'user', text).whenComplete(() {
+      if (mounted) setState(() => _isSyncing = false);
+    });
 
     // 2. Stream Processing (StreamBuilder pattern manually implemented)
     Future.microtask(() async {
@@ -236,7 +241,10 @@ class _HomeScreenState extends State<HomeScreen> {
         if (mounted) {
            _trackConversation('ai', fullResponse);
            // Real-time Logging for AI (Async)
-           _aiService.logChatRealtime(_currentSessionId, 'ai', fullResponse);
+           if (mounted) setState(() => _isSyncing = true);
+           _aiService.logChatRealtime(_currentSessionId, 'ai', fullResponse).whenComplete(() {
+             if (mounted) setState(() => _isSyncing = false);
+           });
         }
 
       } catch (e) {
@@ -365,6 +373,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.white,
       resizeToAvoidBottomInset: true, // Allow resize for chat input
       drawer: MemoryGrid( // Changed from MemoryDrawer to MemoryGrid
+        refreshTrigger: _lastArchivedAt, // Pass trigger to refresh drawer
         onMemoryTap: (doc) {
           // Open Detail View (Core Interaction)
           showModalBottomSheet(
@@ -460,10 +469,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
         title: _isReflecting
           ? Text("Reflecting...", style: GoogleFonts.nanumMyeongjo(fontSize: 16, color: Colors.purple.withOpacity(0.6)))
-          : null,
+          : (_isSyncing
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey)),
+                    const SizedBox(width: 8),
+                    Text("Syncing...", style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey))
+                  ],
+                )
+              : null),
         centerTitle: true,
         actions: [
-          // Manual Save Button
+          // Manual Save Button (Flush Session)
           IconButton(
             icon: const Icon(Icons.save_alt, color: Colors.black54),
             tooltip: "현재 대화 저장 (이어하기)",
@@ -500,8 +518,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
 
                 if (mounted) {
+                  setState(() => _lastArchivedAt = DateTime.now().toIso8601String());
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("대화가 저장되었습니다. (대화는 계속 이어집니다)", style: GoogleFonts.nanumMyeongjo()))
+                    SnackBar(content: Text("세션이 저장되었습니다. (보관함 동기화 완료)", style: GoogleFonts.nanumMyeongjo()))
                   );
                 }
               });
