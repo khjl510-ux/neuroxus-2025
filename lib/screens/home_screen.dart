@@ -373,6 +373,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.white,
       resizeToAvoidBottomInset: true, // Allow resize for chat input
       drawer: MemoryGrid( // Changed from MemoryDrawer to MemoryGrid
+        key: UniqueKey(), // Force rebuild on open to ensure UI updates
         refreshTrigger: _lastArchivedAt, // Pass trigger to refresh drawer
         onMemoryTap: (doc) {
           // Open Detail View (Core Interaction)
