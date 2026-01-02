@@ -13,6 +13,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'services/ai_service.dart';
 import 'screens/home_screen.dart'; // Import HomeScreen
+import 'screens/core_functional_home.dart'; // Import CoreFunctionalHome
 
 const Color kPaperColor = Color(0xFFF9F7F1);
 const Color kInkBlack = Color(0xFF1A1A1A);
@@ -87,8 +88,8 @@ class NeuroxusApp extends StatelessWidget {
           stream: Supabase.instance.client.auth.onAuthStateChange,
           builder: (context, snapshot) {
             final session = Supabase.instance.client.auth.currentSession;
-            // If logged in, show the new HomeScreen (The Awakening)
-            if (session != null) return const HomeScreen();
+            // If logged in, show the CoreFunctionalHome (No Design, Pure Logic)
+            if (session != null) return const CoreFunctionalHome();
             return const LoginPage();
           },
         ),
