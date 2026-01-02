@@ -18,6 +18,7 @@ import '../widgets/memory_grid.dart'; // Import MemoryGrid
 import '../widgets/instruction_edit_dialog.dart'; // Import InstructionEditDialog
 import '../models/conversation_node.dart'; // Added missing import
 import '../models/cognitive_score.dart'; // Added missing import
+import 'master_settings_screen.dart'; // Import MasterSettingsScreen
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -529,7 +530,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.settings, color: Colors.black54),
-            onPressed: _openInstructionEditor,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => MasterSettingsScreen(
+                aiService: _aiService,
+                onForceCheckpoint: (reason) => _triggerContextCheckpoint(reason),
+              ))
+            ),
           ),
         ],
       ),
