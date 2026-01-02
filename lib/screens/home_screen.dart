@@ -529,13 +529,17 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.settings, color: Colors.black54),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => MasterSettingsScreen(
-                aiService: _aiService,
-                onForceCheckpoint: (reason) => _triggerContextCheckpoint(reason),
-              ))
-            ),
+            // Changed icon to verify update
+            icon: const Icon(Icons.tune, color: Colors.black54),
+            onPressed: () {
+              print("Opening Master Control Panel...");
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => MasterSettingsScreen(
+                  aiService: _aiService,
+                  onForceCheckpoint: (reason) => _triggerContextCheckpoint(reason),
+                ))
+              );
+            },
           ),
         ],
       ),
